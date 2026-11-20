@@ -1,0 +1,22 @@
+{
+  "info": {
+    "_postman_id": "d9d1c7b4-6f6d-4c5e-ae18-2c4d0a5a5b11",
+    "name": "College CMS - Landing Page API",
+    "description": "GET requests for the Landing Page API. Start the Express backend on port 5000 before running the requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1" }
+  ],
+  "item": [
+    { "name": "Health Check", "request": { "method": "GET", "url": "{{baseUrl}}/health" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });", "pm.test('API status is ok', function () { pm.expect(pm.response.json().status).to.eql('ok'); });"] } }] },
+    { "name": "Get College Information", "request": { "method": "GET", "url": "{{baseUrl}}/college" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });", "pm.test('College name is included', function () { pm.expect(pm.response.json()).to.have.property('name'); });"] } }] },
+    { "name": "Get Modules", "request": { "method": "GET", "url": "{{baseUrl}}/modules" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });", "pm.test('Response is an array', function () { pm.expect(pm.response.json()).to.be.an('array'); });"] } }] },
+    { "name": "Get Featured Content", "request": { "method": "GET", "url": "{{baseUrl}}/featured" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });"] } }] },
+    { "name": "Get All Announcements", "request": { "method": "GET", "url": "{{baseUrl}}/announcements" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });", "pm.test('Response contains data and total', function () { const body = pm.response.json(); pm.expect(body).to.have.property('data'); pm.expect(body).to.have.property('total'); });"] } }] },
+    { "name": "Filter Announcements by Category", "request": { "method": "GET", "url": "{{baseUrl}}/announcements?category=Event" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });", "pm.test('Returned items match Event category', function () { pm.response.json().data.forEach(function (item) { pm.expect(item.category.toLowerCase()).to.eql('event'); }); });"] } }] },
+    { "name": "Search Announcements", "request": { "method": "GET", "url": "{{baseUrl}}/announcements?search=enrollment" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });"] } }] },
+    { "name": "Get Announcement by ID", "request": { "method": "GET", "url": "{{baseUrl}}/announcements/ANN-001" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });", "pm.test('Correct announcement ID is returned', function () { pm.expect(pm.response.json().id).to.eql('ANN-001'); });"] } }] },
+    { "name": "Unknown Announcement (Expected 404)", "request": { "method": "GET", "url": "{{baseUrl}}/announcements/DOES-NOT-EXIST" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Unknown announcement returns 404', function () { pm.response.to.have.status(404); });"] } }] }
+  ]
+}

@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #F3F5F4;
+  margin: 0;
+  color: #1f2937;
+}
+
+/* Nav links */
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  color: rgba(255,255,255,0.8);
+  font-weight: 500;
+  font-size: 14.5px;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+.nav-link:hover {
+  background: rgba(255,255,255,0.08);
+  color: white;
+}
+.nav-link.active {
+  background: #1FA86B;
+  color: white;
+  box-shadow: 0 2px 10px rgba(31, 168, 107, 0.4);
+}
+
+/* Module cards - soft green border like Figma */
+.module-card {
+  background: white;
+  border: 1.5px solid #B8DCC4;
+  border-radius: 14px;
+  padding: 18px 20px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.module-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  border-color: #86C99A;
+}
+
+/* Announcement cards */
+.announce-card {
+  background: white;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 14px;
+  padding: 18px 20px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: inherit;
+}
+.announce-card:hover {
+  border-color: #B8DCC4;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+
+/* Icon container */
+.icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #E6F5EC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+/* Search */
+.search-input {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 9999px;
+  padding: 10px 16px 10px 42px;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+}
+.search-input:focus {
+  border-color: #1FA86B;
+  box-shadow: 0 0 0 3px rgba(31, 168, 107, 0.15);
+}
+
+.fade-in {
+  animation: fadeIn 0.22s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+
+/* Persisted dark appearance selected from Settings */
+.dark-theme body { background: #111827; color: #e5e7eb; }
+.dark-theme .settings-panel, .dark-theme .module-card, .dark-theme .announce-card { background: #1f2937; border-color: #374151; color: #e5e7eb; }
+.dark-theme .settings-panel h1, .dark-theme .settings-panel h2, .dark-theme .settings-panel b, .dark-theme .module-card h3 { color: #f9fafb; }
+.dark-theme .settings-input { background: #111827; color: #f9fafb; border-color: #4b5563; }
+.dark-theme header { background: #1f2937; border-color: #374151; }
+.dark-theme header a, .dark-theme header span { color: #e5e7eb; }
+.dark-theme main { color: #e5e7eb; }
+.dark-theme main h1, .dark-theme main h2, .dark-theme main h3 { color: #f9fafb; }
+
+.dark-theme .bg-gray-50 { background-color: #111827 !important; }
+.dark-theme .text-gray-900 { color: #f9fafb !important; }
+.dark-theme .text-gray-700, .dark-theme .text-gray-600 { color: #d1d5db !important; }
+.dark-theme .border-gray-100, .dark-theme .border-gray-200 { border-color: #374151 !important; }

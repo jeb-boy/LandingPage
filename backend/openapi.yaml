@@ -1,0 +1,350 @@
+openapi: 3.0.3
+info:
+  title: College Management System API
+  version: 2.0.0
+  description: >
+    Landing Page + Authentication REST API for the College Management System.
+    Uses PostgreSQL, JWT sessions in HTTP-only cookies, and role-based access control.
+servers:
+  - url: /api/v1
+    description: Relative to the deployed host
+  - url: http://localhost:5000/api/v1
+    description: Local development
+tags:
+  - name: Health
+  - name: Public
+  - name: Auth
+  - name: Users
+  - name: Announcements
+  - name: Integrations
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check (includes database connectivity)
+      responses:
+        "200":
+          description: Service and database are healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  database: { type: string, example: connected }
+        "503":
+          description: Database unavailable
+  /college:
+    get:
+      tags: [Public]
+      summary: College information
+      responses:
+        "200":
+          description: College profile
+  /modules:
+    get:
+      tags: [Public]
+      summary: List college modules
+      responses:
+        "200":
+          description: Module list
+  /featured:
+    get:
+      tags: [Public]
+      summary: Featured landing content
+      responses:
+        "200":
+          description: Featured items
+  /announcements:
+    get:
+      tags: [Announcements]
+      summary: List published announcements
+      parameters:
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        "200":
+          description: Announcement list with total
+    post:
+      tags: [Announcements]
+      summary: Create announcement (faculty or admin)
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, summary, content]
+              properties:
+                title: { type: string }
+                category: { type: string }
+                summary: { type: string }
+                content: { type: string }
+                imageUrl: { type: string }
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Validation error
+        "401":
+          description: Authentication required
+        "403":
+          description: Insufficient role
+  /announcements/{id}:
+    get:
+      tags: [Announcements]
+      summary: Get announcement by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Announcement details
+        "404":
+          description: Not found
+    patch:
+      tags: [Announcements]
+      summary: Update announcement (faculty or admin)
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Updated
+        "404":
+          description: Not found
+    delete:
+      tags: [Announcements]
+      summary: Delete announcement (admin only)
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+        "403":
+          description: Admin role required
+        "404":
+          description: Not found
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new student account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName, email, password]
+              properties:
+                fullName: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 10 }
+      responses:
+        "201":
+          description: Account created; session cookie set
+        "400":
+          description: Validation error
+        "409":
+          description: Email already registered
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: Signed in; session cookie set
+        "401":
+          description: Invalid credentials
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Sign out and clear session cookie
+      responses:
+        "200":
+          description: Signed out
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current authenticated user
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+        "401":
+          description: Not authenticated
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        "200":
+          description: Generic success (does not reveal whether email exists)
+        "503":
+          description: Email provider not configured
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password with token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 10 }
+      responses:
+        "200":
+          description: Password updated
+        "400":
+          description: Invalid token or password
+  /users/profile:
+    get:
+      tags: [Users]
+      summary: Get own profile
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Profile
+        "401":
+          description: Not authenticated
+    patch:
+      tags: [Users]
+      summary: Update own profile
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName: { type: string }
+                program: { type: string }
+                yearLevel: { type: string }
+      responses:
+        "200":
+          description: Updated profile
+        "400":
+          description: Validation error
+  /users/password:
+    patch:
+      tags: [Users]
+      summary: Change password
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 10 }
+      responses:
+        "200":
+          description: Password changed
+        "400":
+          description: Incorrect current password or weak new password
+  /users/settings:
+    get:
+      tags: [Users]
+      summary: Get user preferences
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Settings
+    put:
+      tags: [Users]
+      summary: Save user preferences
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                emailUpdates: { type: boolean }
+                notifications: { type: boolean }
+                theme: { type: string, enum: [light, dark, system] }
+      responses:
+        "200":
+          description: Settings saved
+  /integrations/library:
+    get:
+      tags: [Integrations]
+      summary: Call the Library module through the shared API gateway
+      description: >
+        Demonstrates inter-module integration. When the remote module or gateway
+        is offline, the API returns 503 with a structured offline message.
+      responses:
+        "200":
+          description: Library summary from the partner module
+        "502":
+          description: Partner responded with an error
+        "503":
+          description: Partner offline or gateway not configured
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: cms_session
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
