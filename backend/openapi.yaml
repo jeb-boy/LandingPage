@@ -357,7 +357,7 @@ paths:
         - in: query
           name: ids
           required: false
-          schema: { type: string, example: library,registrar }
+          schema: { type: string, example: "library,registrar" }
       responses:
         "200": { description: Module status map; each module reports online/offline state }
   /integrations/modules/{moduleId}:
