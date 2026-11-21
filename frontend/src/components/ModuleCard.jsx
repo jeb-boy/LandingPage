@@ -1,3 +1,4 @@
+
 export default function ModuleCard({ module, live }) {
   const status = live
     ? live.ok
@@ -26,7 +27,7 @@ export default function ModuleCard({ module, live }) {
   })();
 
   return (
-    <article className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+    <article className="module-card rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-2 mb-2">
         <h2 className="font-semibold text-gray-900">{module.name}</h2>
         {status && (
@@ -37,7 +38,9 @@ export default function ModuleCard({ module, live }) {
           </span>
         )}
       </div>
+
       <p className="text-sm text-gray-600 line-clamp-3">{summaryText}</p>
+
       {live?.ok && live.data && (
         <details className="mt-3 text-xs text-gray-500">
           <summary className="cursor-pointer select-none">Live payload</summary>

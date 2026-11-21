@@ -1,8 +1,9 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 * { box-sizing: border-box; }
 
@@ -119,3 +120,27 @@ body {
 .dark-theme .text-gray-900 { color: #f9fafb !important; }
 .dark-theme .text-gray-700, .dark-theme .text-gray-600 { color: #d1d5db !important; }
 .dark-theme .border-gray-100, .dark-theme .border-gray-200 { border-color: #374151 !important; }
+
+/* Quick Access cards - Dark Mode */
+.dark-theme .module-card {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+  color: #e5e7eb !important;
+}
+
+.dark-theme .module-card h2 {
+  color: #f9fafb !important;
+}
+
+.dark-theme .module-card p {
+  color: #d1d5db !important;
+}
+
+.dark-theme .module-card pre {
+  background-color: #111827 !important;
+  color: #e5e7eb !important;
+}
+
+.dark-theme .module-card summary {
+  color: #d1d5db !important;
+}
