@@ -40,24 +40,48 @@ app.get('/', (req, res) =>
   })
 );
 
-app.get('/api/v1/health', async (req, res) => {
+async function healthHandler(req, res) {
   try {
     await pool.query('SELECT 1');
     res.json({ status: 'ok', database: 'connected' });
   } catch (e) {
     res.status(503).json({ status: 'error', database: 'disconnected' });
   }
-});
+}
+
+// Both paths are supported: /health for platform checks and /api/v1/health for the API contract.
+app.get('/health', healthHandler);
+app.get('/api/v1/health', healthHandler);
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument, { explorer: true }));
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1', landingRoutes);
 
+// Malformed JSON should be a client error, not an internal server error.
 app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({
+      type: 'about:blank', title: 'Bad Request', status: 400,
+      detail: 'Request body must contain valid JSON.',
+    });
+  }
   console.error(err);
-  res.status(500).json({ message: 'An unexpected server error occurred.' });
+  res.status(500).json({
+    type: 'about:blank', title: 'Internal Server Error', status: 500,
+    detail: 'An unexpected server error occurred.',
+  });
 });
+
+// Keep unknown API routes explicit and predictable.
+app.use('/api', (req, res) => res.status(404).json({
+  type: 'about:blank', title: 'Not Found', status: 404,
+  detail: `API route ${req.method} ${req.originalUrl} was not found.`,
+}));
+app.use((req, res) => res.status(404).json({
+  type: 'about:blank', title: 'Not Found', status: 404,
+  detail: `Route ${req.method} ${req.originalUrl} was not found.`,
+}));
 
 app.listen(PORT, () => {
   console.log(`College CMS API listening on port ${PORT}`);

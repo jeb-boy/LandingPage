@@ -44,6 +44,7 @@ function issueSession(res, user) {
     { expiresIn: '8h' }
   );
   res.cookie('cms_session', token, cookieOptions());
+  return token;
 }
 
 router.post('/register', authLimit, async (req, res, next) => {
@@ -61,8 +62,8 @@ router.post('/register', authLimit, async (req, res, next) => {
       [fullName.trim(), email.trim().toLowerCase(), hash]
     );
     await pool.query('INSERT INTO user_settings(user_id) VALUES($1)', [result.rows[0].id]);
-    issueSession(res, result.rows[0]);
-    res.status(201).json({ user: publicUser(result.rows[0]) });
+    const token = issueSession(res, result.rows[0]);
+    res.status(201).json({ token, tokenType: 'Bearer', expiresIn: 28800, user: publicUser(result.rows[0]) });
   } catch (e) {
     if (e.code === '23505') {
       return res.status(409).json({ message: 'An account with this email already exists.' });
@@ -84,8 +85,8 @@ router.post('/login', authLimit, async (req, res, next) => {
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ message: 'Incorrect email or password.' });
     }
-    issueSession(res, user);
-    res.json({ user: publicUser(user) });
+    const token = issueSession(res, user);
+    res.json({ token, tokenType: 'Bearer', expiresIn: 28800, user: publicUser(user) });
   } catch (e) {
     next(e);
   }

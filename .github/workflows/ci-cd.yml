@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test-backend:
     runs-on: ubuntu-latest
@@ -39,18 +42,27 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: backend/package-lock.json
-      - name: Install dependencies
+      - name: Install backend dependencies
         run: npm ci
-      - name: Run migrations
+      - name: Apply database migrations
         run: npm run migrate
-      - name: Syntax check
-        run: node --check server.js && node --check routes/authRoutes.js && node --check routes/userRoutes.js && node --check routes/landingRoutes.js
-      - name: Start API and hit health
+      - name: Run backend checks
+        run: npm test
+      - name: Verify OpenAPI YAML parses
+        run: node -e "require('yamljs').load('openapi.yaml'); console.log('OpenAPI YAML is valid')"
+      - name: Start API and verify health and Swagger
         run: |
-          node server.js &
-          sleep 3
-          curl -sf http://localhost:5000/api/v1/health | grep -q '"status":"ok"'
-          curl -sf http://localhost:5000/docs/ | head -c 200
+          node server.js > /tmp/landing-api.log 2>&1 &
+          echo $! > /tmp/landing-api.pid
+          for i in {1..20}; do
+            if curl -fsS http://localhost:5000/health >/tmp/health.json; then break; fi
+            sleep 1
+          done
+          grep -q '"status":"ok"' /tmp/health.json
+          curl -fsS http://localhost:5000/api/v1/health | grep -q '"status":"ok"'
+          curl -fsS http://localhost:5000/docs/ >/dev/null
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/api/v1/not-a-route)" = "404"
+          kill "$(cat /tmp/landing-api.pid)"
 
   test-frontend:
     runs-on: ubuntu-latest
@@ -64,23 +76,26 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: npm ci
-      - name: Build
+      - name: Build frontend
         run: npm run build
         env:
-          VITE_API_URL: https://example.com/api/v1
+          VITE_API_URL: https://example.invalid/api/v1
 
-  deploy:
+  deploy-render:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [test-backend, test-frontend]
     runs-on: ubuntu-latest
+    env:
+      RENDER_BACKEND_DEPLOY_HOOK: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}
+      RENDER_FRONTEND_DEPLOY_HOOK: ${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Deploy notice
+      - name: Trigger Render deployments (when hooks are configured)
         run: |
-          echo "CI passed on main."
-          echo "Configure your Render (or other) service to auto-deploy from this repository."
-          echo "Set root directories: backend for the Web Service, frontend for the Static Site."
-          echo "Required secrets on the host: DATABASE_URL, JWT_SECRET, FRONTEND_URL, APP_URL."
-          echo "Optional: RESEND_API_KEY, MAIL_FROM, GATEWAY_URL."
+          if [ -z "$RENDER_BACKEND_DEPLOY_HOOK" ] || [ -z "$RENDER_FRONTEND_DEPLOY_HOOK" ]; then
+            echo "Deployment skipped: add RENDER_BACKEND_DEPLOY_HOOK and RENDER_FRONTEND_DEPLOY_HOOK in GitHub repository Actions secrets."
+            exit 0
+          fi
+          curl --fail --silent --show-error --request POST "$RENDER_BACKEND_DEPLOY_HOOK"
+          curl --fail --silent --show-error --request POST "$RENDER_FRONTEND_DEPLOY_HOOK"

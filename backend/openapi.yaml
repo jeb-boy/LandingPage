@@ -4,7 +4,7 @@ info:
   version: 2.0.0
   description: >
     Landing Page + Authentication REST API for the College Management System.
-    Uses PostgreSQL, JWT sessions in HTTP-only cookies, and role-based access control.
+    Uses PostgreSQL, JWT bearer tokens and HTTP-only session cookies, and role-based access control.
 servers:
   - url: /api/v1
     description: Relative to the deployed host
@@ -20,6 +20,9 @@ tags:
 paths:
   /health:
     get:
+      servers:
+        - url: /
+          description: Root health endpoint for deployment platform checks
       tags: [Health]
       summary: Health check (includes database connectivity)
       responses:
@@ -162,7 +165,11 @@ paths:
                 password: { type: string, minLength: 10 }
       responses:
         "201":
-          description: Account created; session cookie set
+          description: Account created; JWT returned and session cookie set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
         "400":
           description: Validation error
         "409":
@@ -183,7 +190,11 @@ paths:
                 password: { type: string }
       responses:
         "200":
-          description: Signed in; session cookie set
+          description: Signed in; JWT returned and session cookie set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
         "401":
           description: Invalid credentials
   /auth/logout:
@@ -338,7 +349,46 @@ paths:
           description: Partner responded with an error
         "503":
           description: Partner offline or gateway not configured
+  /integrations/modules:
+    get:
+      tags: [Integrations]
+      summary: Get live status for multiple modules through the shared gateway
+      parameters:
+        - in: query
+          name: ids
+          required: false
+          schema: { type: string, example: library,registrar }
+      responses:
+        "200": { description: Module status map; each module reports online/offline state }
+  /integrations/modules/{moduleId}:
+    get:
+      tags: [Integrations]
+      summary: Get one module summary through the shared API gateway
+      parameters:
+        - in: path
+          name: moduleId
+          required: true
+          schema: { type: string, enum: [library, registrar, student-portal, finance, faculty, clinic, inventory] }
+      responses:
+        "200": { description: Partner module response }
+        "502": { description: Partner returned an unsuccessful response }
+        "503": { description: Partner or gateway is offline or not configured }
 components:
+  schemas:
+    AuthResponse:
+      type: object
+      required: [token, tokenType, expiresIn, user]
+      properties:
+        token: { type: string, description: Signed JWT access token }
+        tokenType: { type: string, example: Bearer }
+        expiresIn: { type: integer, example: 28800 }
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            fullName: { type: string }
+            email: { type: string, format: email }
+            role: { type: string, enum: [student, faculty, admin] }
   securitySchemes:
     cookieAuth:
       type: apiKey

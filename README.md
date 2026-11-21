@@ -51,3 +51,13 @@ See `docs/DEPLOYMENT.md`. Keep secrets out of Git. Actions workflow lives in `.g
 ## Scope notes
 - Password-reset email requires Resend (`RESEND_API_KEY`, `MAIL_FROM`).
 - Cross-module integration is wired; set `GATEWAY_URL` when the partner module is available and update `docs/AGREEMENTS_LOG.md`.
+
+
+## Final-stage validation notes
+- API health: `GET /health` and `GET /api/v1/health`.
+- Swagger UI: `/docs`.
+- Login/register return a JWT and also set the `cms_session` HTTP-only cookie used by the current frontend.
+- Run the local stack with `docker compose up --build`; frontend is on port 5173 and API is on port 5000.
+- The GitHub Actions workflow runs checks on pushes/PRs to `main`. Render deployment hooks must be added as repository Actions secrets before automatic deployment is enabled.
+- The cross-module Library call is not considered complete until a real successful gateway request and an offline test are recorded in `docs/AGREEMENTS_LOG.md`.
+- Do not commit `.env` or `node_modules`.

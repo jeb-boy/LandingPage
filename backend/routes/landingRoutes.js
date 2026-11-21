@@ -4,6 +4,14 @@ const integrationService = require('../services/integrationService');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function validateAnnouncementId(req, res, next) {
+  if (!UUID_RE.test(req.params.id)) {
+    return res.status(400).json({ type: 'about:blank', title: 'Bad Request', status: 400, detail: 'Announcement ID must be a valid UUID.' });
+  }
+  next();
+}
 
 function extractToken(req) {
   return (
@@ -34,7 +42,7 @@ router.get('/announcements', async (req, res, next) => {
   }
 });
 
-router.get('/announcements/:id', async (req, res, next) => {
+router.get('/announcements/:id', validateAnnouncementId, async (req, res, next) => {
   try {
     const announcement = await landingService.getAnnouncementById(req.params.id);
     if (!announcement) {
@@ -80,6 +88,7 @@ router.post(
 
 router.patch(
   '/announcements/:id',
+  validateAnnouncementId,
   requireAuth,
   requireRole('faculty', 'admin'),
   async (req, res, next) => {
@@ -97,6 +106,7 @@ router.patch(
 
 router.delete(
   '/announcements/:id',
+  validateAnnouncementId,
   requireAuth,
   requireRole('admin'),
   async (req, res, next) => {

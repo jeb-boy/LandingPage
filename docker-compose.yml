@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: local_dev_only_change_me
       POSTGRES_DB: college_cms
     ports:
       - "5432:5432"
@@ -15,6 +15,16 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    build: ./backend
+    command: ["npm", "run", "migrate"]
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:local_dev_only_change_me@db:5432/college_cms
+    depends_on:
+      db:
+        condition: service_healthy
+
   api:
     build: ./backend
     ports:
@@ -22,13 +32,22 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/college_cms
-      JWT_SECRET: local-dev-secret-change-me-32chars-min
+      DATABASE_URL: postgresql://postgres:local_dev_only_change_me@db:5432/college_cms
+      JWT_SECRET: local-dev-only-change-this-secret-before-use-123456
       FRONTEND_URL: http://localhost:5173
-      APP_URL: http://localhost:5173
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:5000/api/v1
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
 
 volumes:
   pgdata:

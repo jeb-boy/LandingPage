@@ -1,57 +1,38 @@
-# Deployment guide (GitHub + Render + Docker)
+# Local testing and deployment guide
 
-## 1. Clean repository
-- Never commit `.env` files or `node_modules`.
-- Commit only `.env.example`.
-- Push the monorepo to GitHub (`main` branch).
+## 1. Repository safety
+- Commit source code, lockfiles, Dockerfiles, workflow files, and `.env.example` only.
+- Never commit `.env`, credentials, `node_modules`, or database dumps.
+- Rotate any real credential that was ever committed or shared.
 
-## 2. PostgreSQL
-Create a PostgreSQL database (Render PostgreSQL recommended). Copy the **Internal Database URL**.
+## 2. Local run (recommended before deployment)
+1. Install Docker Desktop and start it.
+2. From the repository root run `docker compose up --build`.
+3. Open the frontend at `http://localhost:5173`.
+4. Open Swagger UI at `http://localhost:5000/docs`.
+5. Check `http://localhost:5000/health` and `http://localhost:5000/api/v1/health`.
+6. Stop with `docker compose down`. Use `docker compose down -v` only if you intend to delete the local database volume.
 
-## 3. Backend Web Service (Render)
-- Root Directory: `backend`
-- Build Command: `npm install`
-- Start Command: `npm start`
-- Environment variables:
-  - `NODE_ENV=production`
-  - `DATABASE_URL` = Render internal DB URL
-  - `JWT_SECRET` = long random string (≥ 32 characters)
-  - `FRONTEND_URL` = your static site URL (https://…)
-  - `APP_URL` = same as FRONTEND_URL
-  - Optional: `RESEND_API_KEY`, `MAIL_FROM`, `GATEWAY_URL`, `GATEWAY_LIBRARY_PATH`
-- After first deploy, open Render Shell and run: `npm run migrate`
+## 3. Render services (deployment is not performed by this guide)
+Create a PostgreSQL database, a backend Web Service, and a frontend Static Site.
 
-### Docker alternative
-```bash
-docker build -t college-cms-api ./backend
-docker run -p 5000:5000 \
-  -e DATABASE_URL=... \
-  -e JWT_SECRET=... \
-  -e FRONTEND_URL=... \
-  -e NODE_ENV=production \
-  college-cms-api
-```
+Backend Web Service: root directory `backend`; build command `npm ci`; start command `npm start`; pre-deploy command `npm run migrate` if the plan supports it. Set `NODE_ENV=production`, `DATABASE_URL`, a random `JWT_SECRET` of at least 32 characters, and `FRONTEND_URL` to the exact deployed frontend origin. Configure `GATEWAY_URL` only after the partner group confirms the shared gateway.
 
-## 4. Frontend Static Site (Render)
-- Root Directory: `frontend`
-- Build Command: `npm install && npm run build`
-- Publish Directory: `dist`
-- Environment variable: `VITE_API_URL=https://YOUR-BACKEND.onrender.com/api/v1`
-- SPA rewrite: source `/*` → destination `/index.html` (Rewrite)
+Frontend Static Site: root directory `frontend`; build command `npm ci && npm run build`; publish directory `dist`; set `VITE_API_URL` to `https://YOUR-BACKEND-HOST/api/v1`. Add the SPA rewrite `/*` to `/index.html`.
 
-## 5. GitHub Actions
-The workflow at `.github/workflows/ci-cd.yml` runs on every push/PR to `main`:
-1. Spins up Postgres
-2. Migrates the schema
-3. Syntax-checks the API and hits `/api/v1/health` + `/docs`
-4. Builds the frontend
-5. On push to `main`, prints deploy readiness (pair with Render auto-deploy from GitHub)
+## 4. GitHub Actions deployment hooks
+The workflow runs backend checks, PostgreSQL migrations, API health/Swagger checks, and a frontend production build on pushes and pull requests to `main`. To enable automatic Render deploys after both test jobs pass, add these repository Actions secrets:
+- `RENDER_BACKEND_DEPLOY_HOOK` — backend service deploy hook URL.
+- `RENDER_FRONTEND_DEPLOY_HOOK` — frontend service deploy hook URL.
 
-Keep the Actions tab green.
+Without both secrets, the deployment job explicitly reports that deployment was skipped. No public deployment is made automatically until these hooks are configured.
 
-## 6. Verify
-- `GET /api/v1/health` → `{ "status": "ok", "database": "connected" }`
-- Swagger UI at `/docs`
-- Register → login → `/auth/me` → profile/settings
-- Faculty/admin can `POST /api/v1/announcements`
-- `GET /api/v1/integrations/library` returns structured offline response when gateway is unset
+## 5. Final verification
+- `GET /health` and `GET /api/v1/health` return HTTP 200 with database connected.
+- Swagger UI loads at `/docs` and matches the live API.
+- Register/login return a JWT and set the HTTP-only `cms_session` cookie.
+- `/api/v1/auth/me` and `/api/v1/users/*` require authentication.
+- Only faculty/admin can create or edit announcements; only admin can delete.
+- Invalid UUIDs and malformed JSON return 400; missing resources/routes return 404.
+- Cross-module integration has one successful call through the actual agreed gateway and a tested offline case.
+- GitHub Actions is green and the deployed site is kept online until grades are released.
