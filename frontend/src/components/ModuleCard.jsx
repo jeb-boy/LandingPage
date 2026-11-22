@@ -41,6 +41,17 @@ export default function ModuleCard({ module, live }) {
 
       <p className="text-sm text-gray-600 line-clamp-3">{summaryText}</p>
 
+      {module.id === 'library' && (
+        <a
+          href="https://library-management-ken-864b.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+        >
+          Open Library Module
+        </a>
+      )}
+
       {live?.ok && live.data && (
         <details className="mt-3 text-xs text-gray-500">
           <summary className="cursor-pointer select-none">Live payload</summary>

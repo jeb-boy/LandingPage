@@ -1,22 +1,8 @@
-/**
- * Cross-module integration via the agreed API gateway.
- *
- * Set GATEWAY_URL to the shared gateway base (e.g. https://gateway.example.com).
- * Optional per-module path overrides:
- *   GATEWAY_LIBRARY_PATH=/api/v1/library/summary
- *   GATEWAY_REGISTRAR_PATH=/api/v1/registrar/me
- *   GATEWAY_FINANCE_PATH=/api/v1/finance/summary
- *   ...
- *
- * When a partner is offline or misconfigured, a structured response is returned
- * so the UI can show a friendly offline state instead of crashing.
- */
 
-const DEFAULT_TIMEOUT_MS = 5000;
+const DEFAULT_TIMEOUT_MS = 30000;
 
-/** Default gateway paths relative to GATEWAY_URL for each module id */
 const DEFAULT_PATHS = {
-  library: '/api/v1/library/summary',
+  library: '/books',
   registrar: '/api/v1/registrar/me',
   'student-portal': '/api/v1/student/summary',
   finance: '/api/v1/finance/summary',
@@ -33,45 +19,128 @@ function pathFor(moduleId) {
 async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
   } finally {
     clearTimeout(timer);
   }
 }
 
-/**
- * Call one partner module through the gateway.
- * @param {string} moduleId - e.g. "library", "registrar"
- * @param {object} [opts]
- * @param {string} [opts.accessToken] - JWT to forward so the partner can identify the user
- * @returns {Promise<{ ok: boolean, online: boolean, moduleId: string, data?: any, message?: string, status?: number }>}
- */
+function offlineResult(moduleId, message) {
+  return {
+    ok: false,
+    online: false,
+    moduleId,
+    message,
+  };
+}
+
+async function getLibrarySummary() {
+  const baseUrl = process.env.LIBRARY_API_BASE_URL;
+
+  if (!baseUrl) {
+    return offlineResult(
+      'library',
+      'Library API is not configured. Set LIBRARY_API_BASE_URL.'
+    );
+  }
+
+  const url = `${baseUrl.replace(/\/+$/, '')}/books`;
+
+  try {
+    const res = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'X-Source-Module': 'landing-cms',
+      },
+    });
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        online: true,
+        moduleId: 'library',
+        status: res.status,
+        message: `Library API responded with status ${res.status}.`,
+      };
+    }
+
+    const books = await res.json();
+
+    if (!Array.isArray(books)) {
+      return {
+        ok: true,
+        online: true,
+        moduleId: 'library',
+        data: {
+          summary: 'Library API connected, but the books response has an unexpected format.',
+          books,
+        },
+      };
+    }
+
+    const availableCopies = books.reduce(
+      (total, book) => total + (Number(book.availableQuantity) || 0),
+      0
+    );
+
+    return {
+      ok: true,
+      online: true,
+      moduleId: 'library',
+      data: {
+        summary: `${books.length} book records retrieved from the Library API. ${availableCopies} available copies.`,
+        totalBooks: books.length,
+        availableCopies,
+        books,
+      },
+    };
+  } catch (err) {
+    return offlineResult(
+      'library',
+      err.name === 'AbortError'
+        ? 'Library API request timed out.'
+        : `Library integration error: ${err.message}`
+    );
+  }
+}
+
 async function getModuleSummary(moduleId, opts = {}) {
+  if (moduleId === 'library') {
+    return getLibrarySummary();
+  }
+
   const gateway = process.env.GATEWAY_URL;
   const path = pathFor(moduleId);
 
   if (!gateway) {
-    return {
-      ok: false,
-      online: false,
+    return offlineResult(
       moduleId,
-      message:
-        'Integration is not configured. Set GATEWAY_URL to the shared API gateway base URL.',
-    };
+      'Integration is not configured. Set GATEWAY_URL to the shared API gateway base URL.'
+    );
   }
 
-  const url = `${gateway.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+  const url = `${gateway.replace(/\/+$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+
   const headers = {
     Accept: 'application/json',
     'X-Source-Module': 'landing-cms',
   };
+
   if (opts.accessToken) {
     headers.Authorization = `Bearer ${opts.accessToken}`;
   }
 
   try {
-    const res = await fetchWithTimeout(url, { method: 'GET', headers });
+    const res = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers,
+    });
 
     if (!res.ok) {
       return {
@@ -84,39 +153,34 @@ async function getModuleSummary(moduleId, opts = {}) {
     }
 
     const data = await res.json();
-    return { ok: true, online: true, moduleId, data };
-  } catch (err) {
-    const offline =
-      err.name === 'AbortError' ||
-      err.code === 'ECONNREFUSED' ||
-      err.cause?.code === 'ECONNREFUSED';
+
     return {
-      ok: false,
-      online: false,
+      ok: true,
+      online: true,
       moduleId,
-      message: offline
-        ? `The ${moduleId} module is currently offline or unreachable. Please try again later.`
-        : `Integration error (${moduleId}): ${err.message}`,
+      data,
     };
+  } catch (err) {
+    return offlineResult(
+      moduleId,
+      err.name === 'AbortError'
+        ? `${moduleId} module request timed out.`
+        : `Integration error (${moduleId}): ${err.message}`
+    );
   }
 }
 
-/** Backward-compatible helper used by /integrations/library */
-async function getLibrarySummary(opts) {
-  return getModuleSummary('library', opts);
-}
-
-/**
- * Fetch live summaries for many modules in parallel.
- * @param {string[]} moduleIds
- * @param {object} [opts]
- */
 async function getManyModuleSummaries(moduleIds, opts = {}) {
   const results = await Promise.all(
     moduleIds.map((id) => getModuleSummary(id, opts))
   );
+
   const byId = {};
-  for (const r of results) byId[r.moduleId] = r;
+
+  for (const result of results) {
+    byId[result.moduleId] = result;
+  }
+
   return byId;
 }
 
