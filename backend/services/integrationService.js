@@ -16,9 +16,11 @@ function pathFor(moduleId) {
     .replace(/-/g, '_')
     .toUpperCase()}_PATH`;
 
-  return process.env[envKey] ||
+  return (
+    process.env[envKey] ||
     DEFAULT_PATHS[moduleId] ||
-    `/api/v1/${moduleId}/summary`;
+    `/api/v1/${moduleId}/summary`
+  );
 }
 
 async function fetchWithTimeout(
@@ -48,7 +50,10 @@ function offlineResult(moduleId, message) {
   };
 }
 
+// ==========================================
 // LIBRARY INTEGRATION
+// ==========================================
+
 async function getLibrarySummary() {
   const baseUrl = process.env.LIBRARY_API_BASE_URL;
 
@@ -122,19 +127,23 @@ async function getLibrarySummary() {
   }
 }
 
+// ==========================================
 // FACULTY INTEGRATION
+// Uses x-api-key authentication
+// ==========================================
+
 async function getFacultySummary() {
   const baseUrl = process.env.FACULTY_API_BASE_URL;
-  const token = process.env.FACULTY_API_TOKEN;
+  const apiKey = process.env.FACULTY_API_TOKEN;
 
-  if (!baseUrl || !token) {
+  if (!baseUrl || !apiKey) {
     return offlineResult(
       'faculty',
       'Faculty API is not configured. Check FACULTY_API_BASE_URL and FACULTY_API_TOKEN.'
     );
   }
 
-  const url = `${baseUrl.replace(/\/+$/, '')}/faculty`;
+  const url = `${baseUrl.replace(/\/+$/, '')}/integrations/faculty`;
 
   try {
     const res = await fetchWithTimeout(url, {
@@ -142,7 +151,7 @@ async function getFacultySummary() {
       headers: {
         Accept: 'application/json',
         'X-Source-Module': 'landing-cms',
-        Authorization: `Bearer ${token}`,
+        'x-api-key': apiKey,
       },
     });
 
@@ -174,7 +183,10 @@ async function getFacultySummary() {
   }
 }
 
+// ==========================================
 // OTHER MODULE INTEGRATIONS
+// ==========================================
+
 async function getModuleSummary(moduleId, opts = {}) {
   if (moduleId === 'library') {
     return getLibrarySummary();
@@ -241,7 +253,10 @@ async function getModuleSummary(moduleId, opts = {}) {
   }
 }
 
+// ==========================================
 // MULTIPLE MODULE INTEGRATIONS
+// ==========================================
+
 async function getManyModuleSummaries(moduleIds, opts = {}) {
   const results = await Promise.all(
     moduleIds.map((id) => getModuleSummary(id, opts))
@@ -255,6 +270,10 @@ async function getManyModuleSummaries(moduleIds, opts = {}) {
 
   return byId;
 }
+
+// ==========================================
+// EXPORTS
+// ==========================================
 
 module.exports = {
   getModuleSummary,
