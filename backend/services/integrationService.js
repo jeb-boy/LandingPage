@@ -6,17 +6,26 @@ const DEFAULT_PATHS = {
   registrar: '/api/v1/registrar/me',
   'student-portal': '/api/v1/student/summary',
   finance: '/api/v1/finance/summary',
-  faculty: '/api/v1/faculty/summary',
+  faculty: '/api/v1/faculty',
   clinic: '/api/v1/clinic/summary',
   inventory: '/api/v1/inventory/summary',
 };
 
 function pathFor(moduleId) {
-  const envKey = `GATEWAY_${String(moduleId).replace(/-/g, '_').toUpperCase()}_PATH`;
-  return process.env[envKey] || DEFAULT_PATHS[moduleId] || `/api/v1/${moduleId}/summary`;
+  const envKey = `GATEWAY_${String(moduleId)
+    .replace(/-/g, '_')
+    .toUpperCase()}_PATH`;
+
+  return process.env[envKey] ||
+    DEFAULT_PATHS[moduleId] ||
+    `/api/v1/${moduleId}/summary`;
 }
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+async function fetchWithTimeout(
+  url,
+  options = {},
+  timeoutMs = DEFAULT_TIMEOUT_MS
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -39,6 +48,7 @@ function offlineResult(moduleId, message) {
   };
 }
 
+// LIBRARY INTEGRATION
 async function getLibrarySummary() {
   const baseUrl = process.env.LIBRARY_API_BASE_URL;
 
@@ -78,14 +88,16 @@ async function getLibrarySummary() {
         online: true,
         moduleId: 'library',
         data: {
-          summary: 'Library API connected, but the books response has an unexpected format.',
+          summary:
+            'Library API connected, but the books response has an unexpected format.',
           books,
         },
       };
     }
 
     const availableCopies = books.reduce(
-      (total, book) => total + (Number(book.availableQuantity) || 0),
+      (total, book) =>
+        total + (Number(book.availableQuantity) || 0),
       0
     );
 
@@ -110,9 +122,66 @@ async function getLibrarySummary() {
   }
 }
 
+// FACULTY INTEGRATION
+async function getFacultySummary() {
+  const baseUrl = process.env.FACULTY_API_BASE_URL;
+  const token = process.env.FACULTY_API_TOKEN;
+
+  if (!baseUrl || !token) {
+    return offlineResult(
+      'faculty',
+      'Faculty API is not configured. Check FACULTY_API_BASE_URL and FACULTY_API_TOKEN.'
+    );
+  }
+
+  const url = `${baseUrl.replace(/\/+$/, '')}/faculty`;
+
+  try {
+    const res = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'X-Source-Module': 'landing-cms',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        online: true,
+        moduleId: 'faculty',
+        status: res.status,
+        message: `Faculty API responded with status ${res.status}.`,
+      };
+    }
+
+    const data = await res.json();
+
+    return {
+      ok: true,
+      online: true,
+      moduleId: 'faculty',
+      data,
+    };
+  } catch (err) {
+    return offlineResult(
+      'faculty',
+      err.name === 'AbortError'
+        ? 'Faculty API request timed out.'
+        : `Faculty integration error: ${err.message}`
+    );
+  }
+}
+
+// OTHER MODULE INTEGRATIONS
 async function getModuleSummary(moduleId, opts = {}) {
   if (moduleId === 'library') {
     return getLibrarySummary();
+  }
+
+  if (moduleId === 'faculty') {
+    return getFacultySummary();
   }
 
   const gateway = process.env.GATEWAY_URL;
@@ -125,7 +194,9 @@ async function getModuleSummary(moduleId, opts = {}) {
     );
   }
 
-  const url = `${gateway.replace(/\/+$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+  const url = `${gateway.replace(/\/+$/, '')}${
+    path.startsWith('/') ? path : `/${path}`
+  }`;
 
   const headers = {
     Accept: 'application/json',
@@ -170,6 +241,7 @@ async function getModuleSummary(moduleId, opts = {}) {
   }
 }
 
+// MULTIPLE MODULE INTEGRATIONS
 async function getManyModuleSummaries(moduleIds, opts = {}) {
   const results = await Promise.all(
     moduleIds.map((id) => getModuleSummary(id, opts))
@@ -187,6 +259,7 @@ async function getManyModuleSummaries(moduleIds, opts = {}) {
 module.exports = {
   getModuleSummary,
   getLibrarySummary,
+  getFacultySummary,
   getManyModuleSummaries,
   DEFAULT_PATHS,
 };
