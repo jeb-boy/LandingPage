@@ -1,3 +1,4 @@
+
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import logo from '../assets/logo.jpg';
@@ -7,7 +8,6 @@ const links = [
   { to: '/', label: 'Home', end: true },
   { to: '/modules', label: 'Modules' },
   { to: '/announcements', label: 'Announcements' },
-  { to: '/integrations', label: 'Integrations' },
   { to: '/about', label: 'About' },
   { to: '/settings', label: 'Settings' },
 ];
@@ -44,6 +44,7 @@ export default function Header() {
             <span className="block text-xs text-gray-500">College Management System</span>
           </span>
         </Link>
+
         <nav
           aria-label="Main navigation"
           className="order-3 flex w-full items-center gap-1 overflow-x-auto border-t border-gray-100 pt-2 sm:order-none sm:w-auto sm:border-0 sm:pt-0"
@@ -65,6 +66,7 @@ export default function Header() {
             </NavLink>
           ))}
         </nav>
+
         {loading ? (
           <span className="text-xs text-gray-400">Checking session…</span>
         ) : user ? (
