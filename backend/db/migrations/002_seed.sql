@@ -1,9 +1,10 @@
+
 -- Seed sample announcements only when the table is empty
 INSERT INTO announcements (title, category, summary, content, image_url, published_at, is_published)
 SELECT * FROM (VALUES
   (
     'Enrollment for A.Y. 2026-2027 is Now Open',
-    'Enrollment',
+    'Announcement',
     'Enrollment for A.Y. 2026-2027 is now officially open. Enroll now and secure your future!',
     E'Enrollment for Academic Year 2026-2027 is now officially open!\n\nWe are excited to welcome both new and returning students. Please prepare the following requirements:\n• Form 138 / Report Card\n• PSA Birth Certificate\n• Certificate of Good Moral Character\n• 2x2 ID pictures\n\nVisit the Registrar''s Office or use the online enrollment portal to complete your registration.',
     'https://images.unsplash.com/photo-1562774053-701939374585?w=800&q=80',
